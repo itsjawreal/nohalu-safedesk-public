@@ -1,0 +1,8 @@
+# Dependensi khusus pengembangan/CI — tidak dibutuhkan untuk menjalankan server.
+-r requirements.txt
+
+# TestClient Starlette 1.x mengimpor `httpx2` (bukan `httpx`). Tanpa ini,
+# `pytest` di runner bersih gagal saat koleksi: "The starlette.testclient
+# module requires the httpx2 package to be installed."
+httpx2>=2.0.0
+pytest>=8.0

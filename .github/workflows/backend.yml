@@ -1,0 +1,43 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        # requirements-dev.txt menarik requirements.txt + httpx2/pytest.
+        # TestClient Starlette 1.x mengimpor `httpx2`, bukan `httpx`; tanpa itu
+        # koleksi tes gagal di runner bersih walau semua tes lulus lokal.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt
+      - name: Run tests
+        # NOHALU_LLM_ENABLED=0: tes tidak boleh memanggil provider berbayar.
+        # NOHALU_REMINDERS=0/NOHALU_BACKUP_ENABLED=0: thread latar tidak perlu
+        # hidup selama tes dan bisa membuat proses menggantung.
+        env:
+          NOHALU_LLM_ENABLED: "0"
+          NOHALU_REMINDERS: "0"
+          NOHALU_BACKUP_ENABLED: "0"
+        run: python -m pytest -q
+      - name: Smoke API
+        env:
+          NOHALU_LLM_ENABLED: "0"
+          NOHALU_REMINDERS: "0"
+          NOHALU_BACKUP_ENABLED: "0"
+        run: python tests/smoke_api.py

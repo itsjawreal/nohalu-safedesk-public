@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data — jangan pernah commit
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+*.session-secret
+backups/
+
+# Konfigurasi lokal
+.env
+backend/.env
+.env.local
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

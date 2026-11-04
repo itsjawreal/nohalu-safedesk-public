@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 760" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="760" fill="#f7f9fc"/>
+  <text x="450" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#0f1729">Nohalu SafeDesk — Architecture</text>
+  <text x="450" y="66" text-anchor="middle" font-size="13" fill="#5b6b8c">Tencent Cloud Hackathon 2026 — Challenge A: The Workplace Brain</text>
+
+  <!-- Layer boxes -->
+  <g>
+    <rect x="150" y="92" width="600" height="62" rx="10" fill="#e8f0ff" stroke="#4f8cff" stroke-width="2"/>
+    <text x="450" y="118" text-anchor="middle" font-size="15" font-weight="700" fill="#1b3a6b">Web UI (vanilla JS, no build)</text>
+    <text x="450" y="140" text-anchor="middle" font-size="12" fill="#3c5a8a">Chat Workspace · Admin Console · Audit Log</text>
+  </g>
+  <g>
+    <rect x="150" y="174" width="600" height="52" rx="10" fill="#eef3fb" stroke="#7a93b8" stroke-width="2"/>
+    <text x="450" y="196" text-anchor="middle" font-size="15" font-weight="700" fill="#1b3a6b">API Gateway — FastAPI</text>
+    <text x="450" y="214" text-anchor="middle" font-size="12" fill="#3c5a8a">/api/auth/login · /api/chat · /api/documents · /api/users · /api/audit</text>
+  </g>
+  <g>
+    <rect x="150" y="246" width="600" height="52" rx="10" fill="#fff4e5" stroke="#e8a33d" stroke-width="2"/>
+    <text x="450" y="268" text-anchor="middle" font-size="15" font-weight="700" fill="#6b4a12">Auth &amp; RBAC</text>
+    <text x="450" y="286" text-anchor="middle" font-size="12" fill="#7a5a20">roles: employee · hr · team_lead · admin · mock token</text>
+  </g>
+  <g>
+    <rect x="150" y="318" width="600" height="58" rx="10" fill="#e9f7ef" stroke="#2ecc71" stroke-width="2"/>
+    <text x="450" y="341" text-anchor="middle" font-size="15" font-weight="700" fill="#145a32">Permission Router (filter BEFORE retrieval)</text>
+    <text x="450" y="360" text-anchor="middle" font-size="12" fill="#1e6b42">workspace ACL ∩ access_roles → allowed documents only</text>
+  </g>
+  <g>
+    <rect x="150" y="396" width="600" height="52" rx="10" fill="#eef3fb" stroke="#7a93b8" stroke-width="2"/>
+    <text x="450" y="418" text-anchor="middle" font-size="15" font-weight="700" fill="#1b3a6b">RAG Retriever</text>
+    <text x="450" y="436" text-anchor="middle" font-size="12" fill="#3c5a8a">sentence chunks · keyword/BM25-lite scoring · top-k</text>
+  </g>
+  <g>
+    <rect x="150" y="468" width="600" height="66" rx="10" fill="#f3ecff" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="450" y="491" text-anchor="middle" font-size="15" font-weight="700" fill="#4a2a86">Answer Agent</text>
+    <text x="450" y="510" text-anchor="middle" font-size="12" fill="#5b3aa0">citations · conflict detection (latest / official wins) · safe refusal</text>
+    <text x="450" y="526" text-anchor="middle" font-size="11" fill="#6b4aa8">deterministic extractive composer — no fabricated facts</text>
+  </g>
+  <g>
+    <rect x="150" y="554" width="600" height="58" rx="10" fill="#ffecec" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="450" y="577" text-anchor="middle" font-size="15" font-weight="700" fill="#8a1f1f">Safety Layer</text>
+    <text x="450" y="596" text-anchor="middle" font-size="12" fill="#a33">PII masking (NIK/phone/email/rekening) · prompt-injection guard (doc = data)</text>
+  </g>
+  <g>
+    <rect x="150" y="632" width="600" height="52" rx="10" fill="#e8f0ff" stroke="#4f8cff" stroke-width="2"/>
+    <text x="450" y="654" text-anchor="middle" font-size="15" font-weight="700" fill="#1b3a6b">Audit Logger (append-only)</text>
+    <text x="450" y="672" text-anchor="middle" font-size="12" fill="#3c5a8a">user · role · question · permission · sources · conflict · injection · answer</text>
+  </g>
+  <g>
+    <rect x="150" y="704" width="600" height="40" rx="10" fill="#eef0f4" stroke="#8a97ad" stroke-width="2"/>
+    <text x="450" y="729" text-anchor="middle" font-size="14" font-weight="700" fill="#2a3b5c">SQLite — users · workspaces · documents · chat · audit_log</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#7a93b8" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <line x1="450" y1="154" x2="450" y2="172"/>
+    <line x1="450" y1="226" x2="450" y2="244"/>
+    <line x1="450" y1="298" x2="450" y2="316"/>
+    <line x1="450" y1="376" x2="450" y2="394"/>
+    <line x1="450" y1="448" x2="450" y2="466"/>
+    <line x1="450" y1="534" x2="450" y2="552"/>
+    <line x1="450" y1="612" x2="450" y2="630"/>
+    <line x1="450" y1="684" x2="450" y2="702"/>
+  </g>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#7a93b8"/>
+    </marker>
+  </defs>
+
+  <text x="150" y="766" font-size="10" fill="#8a97ad">Deterministic engine: 20/20 test cases run offline without an external LLM. LLM optional later.</text>
+</svg>
