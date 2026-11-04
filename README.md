@@ -2,6 +2,8 @@
 
 **Chat kerja aman dengan sumber, izin, dan audit.**
 
+`python 3.11` · `python 3.12` · `1287 tes lokal` · `MIT` · `tanpa API key`
+
 Backend untuk asisten chat internal perusahaan. Karyawan bertanya soal kebijakan,
 SOP, status proyek, dan operasional kerja; agent hanya menjawab dari knowledge base
 yang **diizinkan untuk user tersebut**, selalu menyertakan **sumber**, mendeteksi
@@ -140,8 +142,12 @@ Kunci dibaca **hanya dari environment/server** — tidak pernah dari klien. Endp
 Di mesin tanpa repo frontend, 2 tes UI di-skip otomatis (1285 passed, 3 skipped). Sisanya berjalan offline:
 tidak ada panggilan jaringan, tidak ada biaya, tidak butuh kunci.
 
-CI menjalankan suite yang sama di Python 3.11 dan 3.12 dengan `NOHALU_LLM_ENABLED=0`
-— lihat `.github/workflows/backend.yml`.
+`.github/workflows/backend.yml` menjalankan suite yang sama di Python 3.11 dan 3.12
+dengan `NOHALU_LLM_ENABLED=0`. Workflow-nya sudah ada di repo, tetapi **belum pernah
+hijau di GitHub Actions**: runner akun ini terkunci karena masalah billing, jadi job
+berhenti sebelum start (`The job was not started because your account is locked due to
+a billing issue`). Status itu bukan kegagalan tes. Angka di atas adalah hasil lokal
+yang bisa direproduksi dengan tiga perintah di blok sebelumnya.
 
 ## Akun demo
 
