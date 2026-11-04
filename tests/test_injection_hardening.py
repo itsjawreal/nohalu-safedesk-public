@@ -1568,6 +1568,65 @@ def test_strip_cache_respects_char_budget():
         engine._STRIP_CACHE_MAX_CHARS = saved_max
 
 
+def _assert_counter_matches(engine_module):
+    assert engine_module._STRIP_CACHE_CHARS == sum(
+        v[0] for v in engine_module._STRIP_CACHE.values())
+
+
+def test_strip_cache_clear_resets_counter():
+    """`clear()` wajib ikut mereset penghitung karakter.
+
+    Penghitung disimpan terpisah dari dict supaya penyisipan tetap O(1). Bila
+    `clear()` tidak meresetnya, angka melenceng ke atas dan cache berhenti
+    menyimpan apa pun TANPA error — kegagalan senyap yang hanya terlihat
+    sebagai performa yang tiba-tiba kembali lambat.
+    """
+    engine.strip_injection_sentences("Kebijakan cuti tahunan 12 hari kerja.")
+    assert engine._STRIP_CACHE and engine._STRIP_CACHE_CHARS > 0
+    engine._STRIP_CACHE.clear()
+    assert engine._STRIP_CACHE_CHARS == 0
+    # Cache harus langsung bisa dipakai lagi setelah clear.
+    engine.strip_injection_sentences("Kebijakan cuti tahunan 12 hari kerja.")
+    _assert_counter_matches(engine)
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda c: c.__setitem__(b"a" * 16, (100, "x" * 100)),
+    lambda c: c.__delitem__(b"a" * 16),
+    lambda c: c.pop(b"a" * 16),
+    lambda c: c.pop(b"a" * 16, None),
+    lambda c: c.popitem(),
+    lambda c: c.update({b"b" * 16: (200, "y" * 200)}),
+    lambda c: c.setdefault(b"c" * 16, (300, "z" * 300)),
+    lambda c: c.__ior__({b"d" * 16: (400, "w" * 400)}),
+    lambda c: c.clear(),
+])
+def test_strip_cache_every_mutator_keeps_counter_accurate(mutate):
+    """Semua mutator dict harus menjaga penghitung, bukan hanya clear/pop.
+
+    Menambal `clear()` dan `pop()` saja menyisakan `del`, `popitem`,
+    `update`, `setdefault`, dan `|=` sebagai jalan drift yang sama. Tes ini
+    mengunci invariannya untuk tiap jalur, karena satu jalur yang lolos akan
+    mematikan pruning secara senyap.
+    """
+    engine._STRIP_CACHE.clear()
+    engine._STRIP_CACHE[b"a" * 16] = (100, "x" * 100)
+    _assert_counter_matches(engine)
+    mutate(engine._STRIP_CACHE)
+    _assert_counter_matches(engine)
+    engine._STRIP_CACHE.clear()
+
+
+def test_strip_cache_replace_existing_key_does_not_double_count():
+    """Menimpa kunci yang sama harus mengurangi ukuran lama lebih dulu."""
+    engine._STRIP_CACHE.clear()
+    engine._STRIP_CACHE[b"k" * 16] = (100, "x" * 100)
+    engine._STRIP_CACHE[b"k" * 16] = (40, "y" * 40)
+    assert engine._STRIP_CACHE_CHARS == 40
+    _assert_counter_matches(engine)
+    engine._STRIP_CACHE.clear()
+
+
 def test_strip_cache_skips_oversized_documents(monkeypatch):
     """Dokumen di atas batas per-entri diproses tanpa disimpan.
 

@@ -1947,12 +1947,84 @@ def _safe_answer_from(doc):
 # dokumen 200 ribu karakter akan menahan ~100 MB, sedangkan batas karakter
 # menjaga pemakaian memori tetap datar berapa pun ukuran dokumennya. Entri
 # terlama dibuang lebih dulu.
-_STRIP_CACHE = {}
 _STRIP_CACHE_CHARS = 0
 _STRIP_CACHE_MAX_CHARS = int(
     os.environ.get("NOHALU_STRIP_CACHE_CHARS", str(8 * 1024 * 1024)))
 _STRIP_CACHE_MAX_ENTRY = 400_000
 _STRIP_CACHE_LOCK = threading.Lock()
+
+
+class _StripCache(dict):
+    """dict yang menjaga penghitung karakternya tetap akurat.
+
+    Ukuran total disimpan di `_STRIP_CACHE_CHARS`, bukan dihitung ulang dengan
+    `sum()` setiap penyisipan (itu O(n) per panggilan pada jalur panas). Harga
+    dari penghitung terpisah adalah risiko drift: satu mutasi yang tidak
+    terhitung membuat angka melenceng dan cache berhenti menyimpan apa pun
+    tanpa error — kegagalan senyap yang hanya terlihat sebagai performa yang
+    tiba-tiba kembali lambat.
+
+    Karena itu SEMUA mutator dict di-override, bukan hanya `clear()` dan
+    `pop()`. Menutup dua jalur saja menyisakan `del`, `popitem`, `update`,
+    `setdefault`, dan `|=` sebagai jalan drift yang sama.
+    """
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self)
+        if args or kwargs:
+            self.update(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        global _STRIP_CACHE_CHARS
+        old = dict.get(self, key)
+        if old is not None:
+            _STRIP_CACHE_CHARS -= old[0]
+        dict.__setitem__(self, key, value)
+        _STRIP_CACHE_CHARS += value[0]
+
+    def __delitem__(self, key):
+        global _STRIP_CACHE_CHARS
+        value = dict.pop(self, key)
+        _STRIP_CACHE_CHARS -= value[0]
+
+    def pop(self, key, *default):
+        global _STRIP_CACHE_CHARS
+        missing = object()
+        value = dict.pop(self, key, missing)
+        if value is missing:
+            if default:
+                return default[0]
+            raise KeyError(key)
+        _STRIP_CACHE_CHARS -= value[0]
+        return value
+
+    def popitem(self):
+        global _STRIP_CACHE_CHARS
+        key, value = dict.popitem(self)
+        _STRIP_CACHE_CHARS -= value[0]
+        return key, value
+
+    def clear(self):
+        global _STRIP_CACHE_CHARS
+        dict.clear(self)
+        _STRIP_CACHE_CHARS = 0
+
+    def update(self, *args, **kwargs):
+        for key, value in dict(*args, **kwargs).items():
+            self[key] = value
+
+    def setdefault(self, key, default=None):
+        if dict.__contains__(self, key):
+            return dict.__getitem__(self, key)
+        self[key] = default
+        return default
+
+    def __ior__(self, other):
+        self.update(other)
+        return self
+
+
+_STRIP_CACHE = _StripCache()
 
 
 def _strip_cache_key(text: str):
@@ -1986,21 +2058,18 @@ def strip_injection_sentences(text: str) -> str:
             return hit[1]
     cleaned = _strip_injection_uncached(text)
     if key is not None:
-        global _STRIP_CACHE_CHARS
         with _STRIP_CACHE_LOCK:
-            old = _STRIP_CACHE.get(key)
-            if old is not None:
-                _STRIP_CACHE_CHARS -= old[0]
             # Buang entri terlama sekaligus sampai ada ruang, bukan satu per
-            # panggilan: biaya pemangkasan jadi O(1) amortized.
+            # panggilan: biaya pemangkasan jadi O(1) amortized. `pop` dan
+            # `__setitem__` sama-sama mengurus penghitung, jadi tidak ada
+            # penambahan manual yang bisa lupa dijalankan.
             while (_STRIP_CACHE and
                    _STRIP_CACHE_CHARS + len(cleaned) > _STRIP_CACHE_MAX_CHARS):
-                stale, (size, _) = next(iter(_STRIP_CACHE.items()))
-                _STRIP_CACHE.pop(stale, None)
-                _STRIP_CACHE_CHARS -= size
+                _STRIP_CACHE.pop(next(iter(_STRIP_CACHE)), None)
             if len(cleaned) <= _STRIP_CACHE_MAX_CHARS:
+                # Mengganti kunci yang sudah ada otomatis mengurangi ukuran
+                # lama sebelum menambah yang baru (lihat `__setitem__`).
                 _STRIP_CACHE[key] = (len(cleaned), cleaned)
-                _STRIP_CACHE_CHARS += len(cleaned)
     return cleaned
 
 
