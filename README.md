@@ -15,7 +15,7 @@ Dibuat untuk **Tencent Cloud Hackathon Indonesia 2026 — Challenge A: The Workp
 git clone <repo-ini> && cd nohalu-safedesk-public
 python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt
 cp backend/.env.example backend/.env
-.venv/bin/python -m pytest -q          # 1056 passed, 3 skipped
+.venv/bin/python -m pytest -q          # 1058 passed, 1 skipped
 .venv/bin/python run.py                # http://localhost:8000
 ```
 
@@ -121,7 +121,7 @@ Kunci dibaca **hanya dari environment/server** — tidak pernah dari klien. Endp
 .venv/bin/python tests/smoke_api.py              # smoke API + RBAC + upload + audit
 ```
 
-Di mesin tanpa repo frontend, 3 tes UI di-skip otomatis. Sisanya berjalan offline:
+Di mesin tanpa repo frontend, 3 tes UI di-skip otomatis (1056 passed, 3 skipped). Sisanya berjalan offline:
 tidak ada panggilan jaringan, tidak ada biaya, tidak butuh kunci.
 
 CI menjalankan suite yang sama di Python 3.11 dan 3.12 dengan `NOHALU_LLM_ENABLED=0`
@@ -194,7 +194,7 @@ backend/
   payslip_pdf.py    generator slip gaji
   logging_setup.py  structured logging JSON
   users_admin.py    CRUD user
-tests/              1056 tes
+tests/              1058 tes
 docs/               accountability sheet
 ```
 

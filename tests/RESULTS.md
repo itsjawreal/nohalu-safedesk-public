@@ -3,10 +3,10 @@
 **25/25 PASS** — matriks skenario LLM (TC-01…TC-25) di bawah.
 
 > Angka itu adalah hasil skenario jawaban, bukan ukuran suite. Suite otomatis
-> penuh: **1056 passed, 3 skipped** (`.venv/bin/python -m pytest -q`; 3 skip hanya
-> terjadi bila repo frontend tidak ada di mesin ini). Matriks di bawah dihasilkan
-> `tests/run_testcases.py` dan memerlukan LLM aktif, jadi tidak ikut dijalankan di
-> suite default (`NOHALU_LLM_ENABLED=0`).
+> penuh: **1058 passed, 1 skipped** — atau **1056 passed, 3 skipped** bila repo
+> frontend tidak ada di mesin ini (3 tes UI di-skip otomatis). Matriks di bawah
+> dihasilkan `tests/run_testcases.py` dan memerlukan LLM aktif, jadi tidak ikut
+> dijalankan di suite default (`NOHALU_LLM_ENABLED=0`).
 
 | Test ID | Input | User | Expected | Actual | Status |
 |---|---|---|---|---|---|
