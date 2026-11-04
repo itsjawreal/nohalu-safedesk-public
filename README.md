@@ -15,7 +15,7 @@ Dibuat untuk **Tencent Cloud Hackathon Indonesia 2026 — Challenge A: The Workp
 git clone <repo-ini> && cd nohalu-safedesk-public
 python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt
 cp backend/.env.example backend/.env
-.venv/bin/python -m pytest -q          # 1273 passed, 1 skipped
+.venv/bin/python -m pytest -q          # 1276 passed, 1 skipped
 .venv/bin/python run.py                # http://localhost:8000
 ```
 
@@ -44,12 +44,12 @@ sehingga penolakan tidak bisa membocorkan keberadaan data.
 | 3 | Refusal netral — "tidak ada" dan "tidak boleh" memakai kalimat identik | `test_engine.py` |
 | 4 | Conflict detection: pengumuman resmi terbaru menang, yang lama disebut | `test_engine.py` |
 | 5 | PII masking (NIK, telepon, email, rekening) kecuali izin eksplisit | `test_personal_data.py` |
-| 6 | Prompt injection: isi dokumen = data, bukan instruksi | `test_injection_hardening.py` (540 tes) |
+| 6 | Prompt injection: isi dokumen = data, bukan instruksi | `test_injection_hardening.py` (543 tes) |
 | 7 | Audit trail append-only | `test_admin_guards.py` |
 
 ### Pertahanan prompt injection
 
-Ini bagian yang paling banyak diuji (**540 kasus**). Yang ditutup:
+Ini bagian yang paling banyak diuji (**543 kasus**). Yang ditutup:
 
 - 22 bahasa (ID, EN, ES, PT, FR, DE, IT, NL, SV, PL, RU, UK, RO, CS, AR, TR,
   VI, TH, ZH, JA, KO, HI), termasuk instruksi campur bahasa dalam satu kalimat
@@ -63,9 +63,15 @@ Ini bagian yang paling banyak diuji (**540 kasus**). Yang ditutup:
 
 Deteksi berjalan di jalur engine, jadi tetap aktif walaupun LLM dimatikan.
 Biaya terukur pada 1.392 pemindaian campuran (potongan dokumen asli + muatan
-serangan, termasuk teks Arab/CJK): **median 1,3 ms, p95 3,3 ms, p99 4,1 ms**.
+serangan, termasuk teks Arab/CJK): **median 1,1 ms, p95 2,7 ms, p99 3,5 ms**.
 ROT13 dan reverse dibatasi ≤400 char, hex ≤2000 char supaya masukan besar tidak
 membuat pemindaian meledak.
+
+Pemindaian dokumen di-cache per isi (digest, batas total 8 MB, bisa diatur lewat
+`NOHALU_STRIP_CACHE_CHARS`). Satu kueri memanggil pembersihan 3-4 kali pada
+dokumen yang sama; tanpa cache, `tool_search_policies` pada korpus 19 KB butuh
+2,3-2,8 detik CPU. Dengan cache: 8-12 ms setelah pemanasan. Dokumen 200 ribu
+karakter (batas `MAX_CHARS`) turun dari ~7 detik ke ~0,2 detik.
 
 Cakupan bahasa kini 22. Yang belum punya pola verba+objek sendiri: bahasa
 Nordik lain di luar Swedia (Norwegia/Denmark/Finlandia), Yunani, Ibrani,
@@ -131,7 +137,7 @@ Kunci dibaca **hanya dari environment/server** — tidak pernah dari klien. Endp
 .venv/bin/python tests/smoke_api.py              # smoke API + RBAC + upload + audit
 ```
 
-Di mesin tanpa repo frontend, 2 tes UI di-skip otomatis (1271 passed, 3 skipped). Sisanya berjalan offline:
+Di mesin tanpa repo frontend, 2 tes UI di-skip otomatis (1274 passed, 3 skipped). Sisanya berjalan offline:
 tidak ada panggilan jaringan, tidak ada biaya, tidak butuh kunci.
 
 CI menjalankan suite yang sama di Python 3.11 dan 3.12 dengan `NOHALU_LLM_ENABLED=0`
@@ -204,7 +210,7 @@ backend/
   payslip_pdf.py    generator slip gaji
   logging_setup.py  structured logging JSON
   users_admin.py    CRUD user
-tests/              1273 tes
+tests/              1276 tes
 docs/               accountability sheet
 ```
 

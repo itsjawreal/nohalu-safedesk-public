@@ -19,7 +19,9 @@ import os
 import sys
 import base64
 import codecs
+import hashlib
 import html
+import threading
 import unicodedata
 import urllib.parse
 from db import row_to_doc
@@ -1932,6 +1934,34 @@ def _safe_answer_from(doc):
     return safe_doc_text(doc.get("content") or "")
 
 
+# Cache hasil pembersihan per isi dokumen.
+#
+# `strip_injection_sentences` dipanggil 3-4 kali pada dokumen yang SAMA dalam
+# satu kueri (`_idf`, `_known`, `_score_doc`, `_snippet`), dan biayanya tumbuh
+# linear terhadap panjang teks: dokumen 200 ribu karakter butuh ~7 detik CPU.
+# Terukur: satu `tool_search_policies` pada korpus 19 KB butuh 2,3-2,8 detik
+# hanya karena pengulangan itu.
+#
+# Kuncinya digest, bukan teksnya, supaya memori tidak menyimpan dua salinan isi
+# dokumen. Batasnya TOTAL KARAKTER, bukan jumlah entri: 512 entri berisi
+# dokumen 200 ribu karakter akan menahan ~100 MB, sedangkan batas karakter
+# menjaga pemakaian memori tetap datar berapa pun ukuran dokumennya. Entri
+# terlama dibuang lebih dulu.
+_STRIP_CACHE = {}
+_STRIP_CACHE_CHARS = 0
+_STRIP_CACHE_MAX_CHARS = int(
+    os.environ.get("NOHALU_STRIP_CACHE_CHARS", str(8 * 1024 * 1024)))
+_STRIP_CACHE_MAX_ENTRY = 400_000
+_STRIP_CACHE_LOCK = threading.Lock()
+
+
+def _strip_cache_key(text: str):
+    """Kunci cache, atau None bila teks terlalu besar untuk di-cache."""
+    if len(text) > _STRIP_CACHE_MAX_ENTRY:
+        return None
+    return hashlib.blake2b(text.encode("utf-8", "replace"), digest_size=16).digest()
+
+
 def strip_injection_sentences(text: str) -> str:
     """Buang kalimat injeksi, termasuk perintah yang DIPECAH antar kalimat.
 
@@ -1946,10 +1976,55 @@ def strip_injection_sentences(text: str) -> str:
     itu: bila gabungannya adalah injeksi dan tidak ada satu kalimat pun yang
     sendirian menjadi penyebabnya, seluruh jendela dibuang.
     """
+    if not text:
+        return ""
+    key = _strip_cache_key(text)
+    if key is not None:
+        with _STRIP_CACHE_LOCK:
+            hit = _STRIP_CACHE.get(key)
+        if hit is not None:
+            return hit[1]
+    cleaned = _strip_injection_uncached(text)
+    if key is not None:
+        global _STRIP_CACHE_CHARS
+        with _STRIP_CACHE_LOCK:
+            old = _STRIP_CACHE.get(key)
+            if old is not None:
+                _STRIP_CACHE_CHARS -= old[0]
+            # Buang entri terlama sekaligus sampai ada ruang, bukan satu per
+            # panggilan: biaya pemangkasan jadi O(1) amortized.
+            while (_STRIP_CACHE and
+                   _STRIP_CACHE_CHARS + len(cleaned) > _STRIP_CACHE_MAX_CHARS):
+                stale, (size, _) = next(iter(_STRIP_CACHE.items()))
+                _STRIP_CACHE.pop(stale, None)
+                _STRIP_CACHE_CHARS -= size
+            if len(cleaned) <= _STRIP_CACHE_MAX_CHARS:
+                _STRIP_CACHE[key] = (len(cleaned), cleaned)
+                _STRIP_CACHE_CHARS += len(cleaned)
+    return cleaned
+
+
+def _strip_injection_uncached(text: str) -> str:
+    """Inti `strip_injection_sentences` tanpa cache."""
     sents = split_sentences(text)
     if not sents:
         return ""
-    drop = [detect_injection(s) for s in sents]
+    # Memo PER-PANGGILAN, bukan cache global: dokumen nyata sering mengulang
+    # kalimat yang sama (satu dokumen 20 ribu karakter bisa berisi 195 kalimat
+    # dengan 2 bentuk unik), sedangkan cache global akan membuat hasil tes
+    # bergantung pada urutan pemanggilan ketika pola di-patch. Cakupannya
+    # dibatasi panjang teks kalimat supaya tidak menahan banyak memori.
+    memo = {}
+
+    def _det(s: str) -> bool:
+        if len(s) > 2_000:
+            return detect_injection(s)
+        hit = memo.get(s)
+        if hit is None:
+            hit = memo[s] = detect_injection(s)
+        return hit
+
+    drop = [_det(s) for s in sents]
     # Jendela 2 dan 3 kalimat, untuk perintah yang dipecah.
     #
     # Kalimat yang TIDAK sendirian menjadi injeksi hanya dibuang bila ia
@@ -1957,15 +2032,27 @@ def strip_injection_sentences(text: str) -> str:
     # huruf kecil/sambung. Tanpa syarat ini, "Kebijakan cuti 12 hari." yang
     # kebetulan bertetangga dengan kalimat injeksi ikut terhapus — isi sah
     # hilang hanya karena posisinya.
+    # `_looks_like_fragment` dihitung SEKALI per kalimat. Sebelumnya ia dipanggil
+    # ulang untuk setiap jendela yang memuat kalimat itu, padahal hasilnya
+    # deterministik. Efek sampingnya lebih besar dari sekadar penghematan:
+    # jendela yang TIDAK memuat satu pun pecahan tidak akan pernah mengubah
+    # `drop` (isi loop-nya bersyarat `_looks_like_fragment`), jadi
+    # `detect_injection` pada jendela itu bisa dilewati tanpa mengubah hasil.
+    # Terukur: 1.100 kalimat berarti 2.200 pemindaian jendela yang sia-sia.
+    frag = [_looks_like_fragment(s) for s in sents]
     for width in (2, 3):
         for i in range(len(sents) - width + 1):
             if all(drop[i:i + width]):
                 continue
+            if not any(frag[j] and not drop[j]
+                       for j in range(i, i + width)):
+                continue
             span = sents[i:i + width]
-            if not detect_injection(". ".join(span)):
+            joined = ". ".join(span)
+            if not _det(joined):
                 continue
             for j in range(i, i + width):
-                if not drop[j] and _looks_like_fragment(sents[j]):
+                if not drop[j] and frag[j]:
                     drop[j] = True
     return ". ".join(s for i, s in enumerate(sents) if not drop[i]).strip()
 
