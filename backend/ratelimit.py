@@ -24,7 +24,7 @@ _RATE_LOCK = threading.Lock()
 # Ambang pemangkasan: bucket yang sudah lewat jendela tidak pernah dipakai lagi
 # (permintaan berikutnya membuat entri baru), tetapi dulu tetap tersimpan
 # selamanya. Satu bucket per IP+kategori+user berarti proses panjang dengan
-# banyak klien unik (proxy Vercel, bot, percobaan login) menumbuhkan dict ini
+# banyak klien unik (proxy/CDN, bot, percobaan login) menumbuhkan dict ini
 # tanpa batas. Dipangkas saat ukurannya melewati ambang, bukan setiap panggilan,
 # supaya biayanya tetap O(1) amortized.
 _PRUNE_THRESHOLD = int(os.environ.get("NOHALU_RATE_PRUNE_THRESHOLD", "2048"))
@@ -59,13 +59,13 @@ def rate_limit(key, limit, window=RATE_WINDOW):
 
 
 def client_ip(request) -> str:
-    """IP klien sebenarnya di belakang reverse proxy (Vercel → InstaBox).
+    """IP klien sebenarnya di belakang reverse proxy / CDN.
 
     Tanpa ini, `request.client.host` selalu IP egress proxy yang dipakai bersama
     semua pengunjung, sehingga satu bucket rate-limit menampung semua orang dan
     login acak-acakan kena 429.
 
-    Hanya `X-Forwarded-For` yang dipercaya: diuji di produksi, Vercel MENIMPA
+    Hanya `X-Forwarded-For` yang dipercaya: diuji di produksi, CDN yang dipakai MENIMPA
     header ini dengan IP klien, sedangkan `X-Real-IP` diteruskan apa adanya dari
     klien (bisa dipalsukan) sehingga tidak dipakai sebagai kunci bucket.
     """

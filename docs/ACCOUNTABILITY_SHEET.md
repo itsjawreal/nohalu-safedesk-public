@@ -31,14 +31,29 @@ Akses ditentukan oleh user ID, role, allowed workspaces, document access roles, 
 
 ## Wajib Approval Manusia
 
-Dalam MVP, agent tidak melakukan aksi eksternal. Jika dikembangkan:
+Agent **tidak** mengirim data ke sistem eksternal, tidak menghapus data, dan
+tidak mengubah izin. Semua aksi yang mengubah data internal memakai pola
+**draft → konfirmasi user → eksekusi**:
 
-- Kirim email/pesan.
-- Buat task.
-- Ubah dokumen.
-- Ubah permission.
-- Hapus data.
-- Kirim data eksternal.
+1. Agent memanggil tool `tool_prepare_*` dan mengembalikan kartu ringkasan
+   (mis. "cuti 15–17 Maret 2027, alasan acara keluarga").
+2. Belum ada baris yang ditulis ke database pada tahap ini.
+3. User menekan setujui; klien mengirim `POST /api/agent/confirm` dengan token
+   sekali pakai yang terikat ke `user_id` + `session_id`.
+4. Baru setelah itu aksi dijalankan, dan hasilnya masuk audit log.
+
+Aksi yang **belum** memakai pola draft (idempoten, tanpa kartu konfirmasi):
+`clock_attendance`, `mark_notifications_read`, `mark_announcements_read`,
+`set_notif_pref`. Keempatnya hanya menyentuh data milik user sendiri dan aman
+diulang, tetapi user tidak menerima ringkasan sebelum eksekusi.
+
+Aksi yang **selalu** butuh approval manusia di luar chat:
+
+- Kirim email/pesan ke pihak eksternal.
+- Membuat task di sistem lain.
+- Mengubah atau menghapus dokumen knowledge base.
+- Mengubah role / permission.
+- Mengirim data ke layanan pihak ketiga.
 
 ## Tidak Akan Dilakukan
 

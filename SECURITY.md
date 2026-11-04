@@ -38,12 +38,22 @@ Ini bagian yang paling penting dan sudah benar sejak awal.
 Isi dokumen diperlakukan sebagai **data**, bukan instruksi. Pertahanan berlapis
 ada di `engine.py`, bukan di prompt LLM:
 
-- 17 bahasa, encoding berlapis (base64 ganda, hex, ROT13, reverse)
+- 22 bahasa (ID, EN, ES, PT, FR, DE, IT, NL, SV, PL, RU, UK, RO, CS, AR, TR,
+  VI, TH, ZH, JA, KO, HI), encoding berlapis (base64 ganda, hex, ROT13, reverse)
 - Homoglyph Cyrillic/Yunani, pemisah per huruf, ASCII smuggling
 - Dievaluasi **per klausa** — satu kalimat sah tidak menjadi perisai untuk
   perintah kedua
 
 Karena gate ini deterministik, mematikan LLM tidak melemahkan pertahanan.
+
+Bentuk berimbuhan ikut dicakup: artikel Arab `ال` (`التعليمات`, `القواعد`),
+sufiks imperatif `-وا`/`-ي`, aspek perfektif Rusia `про-`, serta harakat dan
+tatweel Arab. Semuanya sempat lolos — satu karakter harakat cukup untuk
+mematikan seluruh pola Arab — dan kini punya tes regresi sendiri.
+
+Cakupan bahasa: 22. Yang **belum** punya pola verba+objek sendiri adalah
+Norwegia/Denmark/Finlandia, Yunani, Ibrani, Bengali, dan Melayu non-Indonesia;
+lihat catatan di README.
 
 ## 4. Data pribadi
 
@@ -58,15 +68,20 @@ tanpa mengganti seluruh identitas.
 
 ## 5. Batas laju dan kuota
 
-Aktif secara default: login (20/menit), chat (60/menit), baca (240/menit),
-pengajuan (30/menit), endpoint publik (120/menit), serta kuota SSE per user.
-Semua dapat diubah lewat environment.
+Aktif secara default: login (20/menit), chat (30/menit), baca (120/menit),
+pengajuan (10/menit), endpoint publik (60/menit), serta kuota SSE 4 koneksi
+per user dengan durasi maksimum 30 detik. Semua dapat diubah lewat environment
+(lihat `backend/.env.example`).
 
 ## 6. Upload berkas
 
-- Format diizinkan: PDF, DOCX, CSV, MD, TXT. Maksimum 10 MB (`NOHALU_MAX_UPLOAD_BYTES`).
-- Tipe diperiksa dari isi, bukan hanya ekstensi.
-- Nama berkas tidak pernah dipakai sebagai path; ID dokumen selalu di-generate.
+- Format dokumen: PDF, DOCX, CSV, MD, TXT. Maksimum 10 MB (`NOHALU_MAX_UPLOAD_BYTES`).
+- Lampiran slip gaji: PDF, PNG, JPG, TXT, CSV (`NOHALU_MAX_FILE_BYTES`, juga 10 MB).
+- **Ekstensi diperiksa dari daftar putih, isi diverifikasi oleh parser.** PDF palsu
+  dan DOCX yang bukan zip ditolak saat parsing (`ingest.parse_file`), bukan
+  diterima lalu diindeks sebagai teks kosong.
+- Nama berkas tidak pernah dipakai sebagai path; nama di disk dibuat server
+  (`<kind>-<uuid>.<ext>`), jadi `../` pada nama unggahan tidak berpengaruh.
 - Parsing berjalan di proses yang sama — untuk beban produksi, jalankan parser di
   worker terpisah dengan batas memori.
 

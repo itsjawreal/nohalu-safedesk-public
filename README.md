@@ -15,7 +15,7 @@ Dibuat untuk **Tencent Cloud Hackathon Indonesia 2026 — Challenge A: The Workp
 git clone <repo-ini> && cd nohalu-safedesk-public
 python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt
 cp backend/.env.example backend/.env
-.venv/bin/python -m pytest -q          # 1058 passed, 1 skipped
+.venv/bin/python -m pytest -q          # 1273 passed, 1 skipped
 .venv/bin/python run.py                # http://localhost:8000
 ```
 
@@ -44,14 +44,17 @@ sehingga penolakan tidak bisa membocorkan keberadaan data.
 | 3 | Refusal netral — "tidak ada" dan "tidak boleh" memakai kalimat identik | `test_engine.py` |
 | 4 | Conflict detection: pengumuman resmi terbaru menang, yang lama disebut | `test_engine.py` |
 | 5 | PII masking (NIK, telepon, email, rekening) kecuali izin eksplisit | `test_personal_data.py` |
-| 6 | Prompt injection: isi dokumen = data, bukan instruksi | `test_injection_hardening.py` (325 tes) |
+| 6 | Prompt injection: isi dokumen = data, bukan instruksi | `test_injection_hardening.py` (540 tes) |
 | 7 | Audit trail append-only | `test_admin_guards.py` |
 
 ### Pertahanan prompt injection
 
-Ini bagian yang paling banyak diuji (**325 kasus**). Yang ditutup:
+Ini bagian yang paling banyak diuji (**540 kasus**). Yang ditutup:
 
-- 17 bahasa, termasuk instruksi campur bahasa dalam satu kalimat
+- 22 bahasa (ID, EN, ES, PT, FR, DE, IT, NL, SV, PL, RU, UK, RO, CS, AR, TR,
+  VI, TH, ZH, JA, KO, HI), termasuk instruksi campur bahasa dalam satu kalimat
+- Bentuk berimbuhan: artikel Arab `ال`, sufiks imperatif `-وا`/`-ي`, perfektif
+  Rusia `про-`, dan harakat/tatweel yang dulu meloloskan seluruh pola Arab
 - Encoding berlapis: base64 (termasuk berlapis ganda), hex, ROT13, teks terbalik
 - Penyamaran karakter: homoglyph Cyrillic + Yunani (termasuk varian ambigu ν/η/ρ)
 - Pemisah per huruf (`i.g.n.o.r.e`), ASCII smuggling, URL/HTML di dalam dokumen
@@ -59,8 +62,15 @@ Ini bagian yang paling banyak diuji (**325 kasus**). Yang ditutup:
   untuk perintah kedua di kalimat berikutnya
 
 Deteksi berjalan di jalur engine, jadi tetap aktif walaupun LLM dimatikan.
-Biaya terukur: **0,76 ms** per pemindaian (ROT13 dan reverse dibatasi ≤400 char,
-hex ≤2000 char).
+Biaya terukur pada 1.392 pemindaian campuran (potongan dokumen asli + muatan
+serangan, termasuk teks Arab/CJK): **median 1,3 ms, p95 3,3 ms, p99 4,1 ms**.
+ROT13 dan reverse dibatasi ≤400 char, hex ≤2000 char supaya masukan besar tidak
+membuat pemindaian meledak.
+
+Cakupan bahasa kini 22. Yang belum punya pola verba+objek sendiri: bahasa
+Nordik lain di luar Swedia (Norwegia/Denmark/Finlandia), Yunani, Ibrani,
+Bengali, dan Melayu non-Indonesia. Muatan dalam bahasa itu masih tertangkap
+bila memakai frasa Inggris atau lewat jalur encoding.
 
 ## Arsitektur
 
@@ -121,7 +131,7 @@ Kunci dibaca **hanya dari environment/server** — tidak pernah dari klien. Endp
 .venv/bin/python tests/smoke_api.py              # smoke API + RBAC + upload + audit
 ```
 
-Di mesin tanpa repo frontend, 3 tes UI di-skip otomatis (1056 passed, 3 skipped). Sisanya berjalan offline:
+Di mesin tanpa repo frontend, 2 tes UI di-skip otomatis (1271 passed, 3 skipped). Sisanya berjalan offline:
 tidak ada panggilan jaringan, tidak ada biaya, tidak butuh kunci.
 
 CI menjalankan suite yang sama di Python 3.11 dan 3.12 dengan `NOHALU_LLM_ENABLED=0`
@@ -194,7 +204,7 @@ backend/
   payslip_pdf.py    generator slip gaji
   logging_setup.py  structured logging JSON
   users_admin.py    CRUD user
-tests/              1058 tes
+tests/              1273 tes
 docs/               accountability sheet
 ```
 
