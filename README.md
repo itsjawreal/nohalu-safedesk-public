@@ -11,10 +11,11 @@ yang **diizinkan untuk user tersebut**, selalu menyertakan **sumber**, mendeteks
 boleh diakses, **memasking PII**, menolak **prompt injection**, dan mencatat
 **audit log** append-only.
 
-Dibuat untuk **Tencent Cloud Hackathon Indonesia 2026 — Challenge A: The Workplace Brain**.
+Dibuat untuk **AI CAN DO IT · Tencent Cloud Hackathon Indonesia 2026 — Challenge A:
+The Workplace Brain** bersama **SumoPod & AICLUB.id**.
 
 ```bash
-git clone <repo-ini> && cd nohalu-safedesk-public
+git clone https://github.com/itsjawreal/nohalu-safedesk-public.git && cd nohalu-safedesk-public
 python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt
 cp backend/.env.example backend/.env
 .venv/bin/python -m pytest -q          # 1287 passed, 1 skipped
@@ -23,6 +24,9 @@ cp backend/.env.example backend/.env
 
 Tanpa API key apa pun, tanpa layanan eksternal. SQLite dibuat otomatis dan diisi
 dataset mock 70 dokumen / 12 karyawan saat pertama kali dijalankan.
+
+Demo live: **https://safedesk.nohalu.xyz**. Repo ini hanya memuat backend sumber
+terbuka; frontend, pipeline video, dan konfigurasi deploy sengaja tidak disertakan.
 
 ---
 
@@ -143,11 +147,16 @@ Di mesin tanpa repo frontend, 2 tes UI di-skip otomatis (1285 passed, 3 skipped)
 tidak ada panggilan jaringan, tidak ada biaya, tidak butuh kunci.
 
 `.github/workflows/backend.yml` menjalankan suite yang sama di Python 3.11 dan 3.12
-dengan `NOHALU_LLM_ENABLED=0`. Workflow-nya sudah ada di repo, tetapi **belum pernah
-hijau di GitHub Actions**: runner akun ini terkunci karena masalah billing, jadi job
-berhenti sebelum start (`The job was not started because your account is locked due to
-a billing issue`). Status itu bukan kegagalan tes. Angka di atas adalah hasil lokal
-yang bisa direproduksi dengan tiga perintah di blok sebelumnya.
+dengan `NOHALU_LLM_ENABLED=0`. Dua run GitHub Actions terakhir
+(`41824388187`, `41823769470`) berstatus `failure` dalam 3–4 detik dengan daftar
+step kosong: runner akun terkunci karena billing, sehingga job berhenti sebelum
+checkout, install, atau pytest. **Ini bukan kegagalan tes.**
+
+Verifikasi final 2026-11-05 pada working tree ini: `1287 passed, 1 skipped`,
+`tests/smoke_api.py` PASS, pemindaian rahasia pada HEAD dan seluruh histori Git
+clean, serta tidak ada cache, database, `.env`, atau konfigurasi infrastruktur
+yang ter-commit. Angka dan status di atas bisa direproduksi dengan perintah di
+blok sebelumnya.
 
 ## Akun demo
 
